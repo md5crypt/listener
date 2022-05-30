@@ -1,4 +1,6 @@
-export default class Listener<T extends (...args: any[]) => void = () => void> {
+export default class Listener<T extends (...args: any[]) => void | boolean = () => void> {
+	public static readonly REMOVE = Symbol()
+
 	private readonly list: (T | null)[] = []
 	private active = false
 	private dirty = false
@@ -66,13 +68,17 @@ export default class Listener<T extends (...args: any[]) => void = () => void> {
 	}
 
 	public invoke(...args: Parameters<T>) {
-		const length = this.list.length
+		const list = this.list
+		const length = list.length
 		if (length) {
 			this.active = true
 			for (let i = 0; i < length; i += 1) {
-				const func = this.list[i] as Function
+				const func = list[i] as Function
 				if (func) {
-					func(...args)
+					if (func(...args) === Listener.REMOVE) {
+						list[i] = null
+						this.dirty = true
+					}
 				}
 			}
 			this.active = false
