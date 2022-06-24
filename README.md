@@ -21,6 +21,10 @@ class FooBar {
 const fooBar = new FooBar()
 
 fooBar.onFoo.add(() => console.log("foo"))
+fooBar.onFoo.add(() => {
+    console.log("this will be executed only once")
+    return Listener.REMOVE
+})
 fooBar.onBar.add((foo, bar) => console.log(foo + bar))
 
 fooBar.foo()

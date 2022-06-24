@@ -87,4 +87,15 @@ export default class Listener<T extends (...args: any[]) => void | boolean = () 
 			}
 		}
 	}
+
+	public get length() {
+		if (this.dirty) {
+			this.gc()
+		}
+		return this.list.length
+	}
+
+	public get empty() {
+		return this.length == 0
+	}
 }
