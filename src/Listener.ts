@@ -2,7 +2,8 @@ export class Listener<T extends (...args: any[]) => void | Promise<void> = () =>
 	public static readonly REMOVE = Symbol()
 
 	private readonly _list: (T | null)[] = []
-	private _active = false
+	private _active = 0
+	private _count = 0
 	private _dirty = false
 
 	// yes, this could be replaced with this.list = this.list.filter(x => x)
@@ -38,9 +39,9 @@ export class Listener<T extends (...args: any[]) => void | Promise<void> = () =>
 		}
 		if (i < length) {
 			const delta = length - i
-			if (delta == 1) {
+			if (delta === 1) {
 				array.pop()
-			} else if (delta == 2) {
+			} else if (delta === 2) {
 				array.pop()
 				array.pop()
 			} else {
@@ -52,9 +53,11 @@ export class Listener<T extends (...args: any[]) => void | Promise<void> = () =>
 
 	public add(listener: T) {
 		this._list.push(listener)
-		if (this._dirty && !this._active) {
+		this._count += 1
+		if (this._dirty === true && this._active === 0) {
 			this.gc()
 		}
+
 		return listener
 	}
 
@@ -63,8 +66,11 @@ export class Listener<T extends (...args: any[]) => void | Promise<void> = () =>
 		if (i >= 0) {
 			this._list[i] = null
 			this._dirty = true
+			this._count -= 1
+
 			return true
 		}
+
 		return false
 	}
 
@@ -72,26 +78,33 @@ export class Listener<T extends (...args: any[]) => void | Promise<void> = () =>
 		for (let i = 0; i < this._list.length; i += 1) {
 			this._list[i] = null
 		}
+		this._count = 0
 		this._dirty = true
 	}
 
 	public invoke(...args: Parameters<T>) {
 		const list = this._list
 		const length = list.length
-		if (length) {
-			this._active = true
-			for (let i = 0; i < length; i += 1) {
-				const func = list[i] as Function
-				if (func) {
-					if (func(...args) === Listener.REMOVE) {
-						list[i] = null
-						this._dirty = true
+		if (length > 0) {
+			this._active += 1
+			try {
+				for (let i = 0; i < length; i += 1) {
+					const func = list[i] as Function
+					if (func !== null) {
+						const result = func(...args)
+						if (result === Listener.REMOVE && list[i] !== null) {
+							list[i] = null
+							this._dirty = true
+							this._count -= 1
+						}
 					}
 				}
-			}
-			this._active = false
-			if (this._dirty) {
-				this.gc()
+			} finally {
+				const active = this._active
+				if (this._dirty === true && active === 1) {
+					this.gc()
+				}
+				this._active = active - 1
 			}
 		}
 	}
@@ -99,37 +112,39 @@ export class Listener<T extends (...args: any[]) => void | Promise<void> = () =>
 	public async asyncInvoke(...args: Parameters<T>) {
 		const list = this._list
 		const length = list.length
-		if (length) {
-			this._active = true
-			for (let i = 0; i < length; i += 1) {
-				const func = list[i] as Function
-				if (func) {
-					let result = func(...args)
-					if (result instanceof Promise) {
-						result = await result
-					}
-					if (result === Listener.REMOVE) {
-						list[i] = null
-						this._dirty = true
+		if (length > 0) {
+			this._active += 1
+			try {
+				for (let i = 0; i < length; i += 1) {
+					const func = list[i] as Function
+					if (func !== null) {
+						let result = func(...args)
+						if (result instanceof Promise) {
+							result = await result
+						}
+						if (result === Listener.REMOVE && list[i] !== null) {
+							list[i] = null
+							this._dirty = true
+							this._count -= 1
+						}
 					}
 				}
-			}
-			this._active = false
-			if (this._dirty) {
-				this.gc()
+			} finally {
+				const active = this._active
+				if (this._dirty === true && active === 1) {
+					this.gc()
+				}
+				this._active = active - 1
 			}
 		}
 	}
 
 	public get length() {
-		if (this._dirty) {
-			this.gc()
-		}
-		return this._list.length
+		return this._count
 	}
 
 	public get empty() {
-		return this.length == 0
+		return this._count === 0
 	}
 }
 

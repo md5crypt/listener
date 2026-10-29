@@ -3,12 +3,13 @@
 		"src/**/*.ts"
 	],
 	"compilerOptions": {
-		"target": "es2017",
-		"module": "es2015",
+		"rootDir": "src",
+		"target": "ES2017",
+		"module": "ES2022",
 		"declaration": true,
 		"sourceMap": false,
-		"moduleResolution": "node",
-		"outDir": "./dist",
+		"moduleResolution": "bundler",
+		"outDir": "dist",
 		"strict": true,
 		"noImplicitAny": true,
 		"strictNullChecks": true,
